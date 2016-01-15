@@ -26,9 +26,9 @@ unit VirtualTrees.ClipBoard;
 interface
 
 uses
-  Winapi.Windows,
-  Winapi.ActiveX,
-  System.Classes,
+  Windows,
+  ActiveX,
+  Classes,
   VirtualTrees;
 
 type
@@ -36,6 +36,11 @@ type
     ID: Word;
     Description: string;
   end;
+
+{$if CompilerVersion = 22}
+const
+  CF_MAX = 18;
+{$ifend}
 
 var
   ClipboardDescriptions: array [1..CF_MAX - 1] of TClipboardFormatEntry = (
@@ -99,7 +104,7 @@ type
 implementation
 
 uses
-  System.SysUtils;
+  SysUtils;
 
 
 procedure EnumerateVTClipboardFormats(TreeClass: TVirtualTreeClass; const List: TStrings);

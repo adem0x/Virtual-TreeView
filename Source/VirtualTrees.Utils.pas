@@ -29,10 +29,10 @@ interface
 {$WARN UNSAFE_CODE OFF}
 
 uses
-  Winapi.Windows,
-  System.Types,
-  Vcl.Graphics,
-  Vcl.ImgList;
+  Windows,
+  Types,
+  Graphics,
+  ImgList;
 
 
 type
@@ -85,10 +85,10 @@ procedure FillDragRectangles(DragWidth, DragHeight, DeltaX, DeltaY: Integer; var
 implementation
 
 uses
-  Winapi.CommCtrl,
-  System.SysUtils,
-  System.StrUtils,
-  System.Math;
+  CommCtrl,
+  SysUtils,
+  StrUtils,
+  Math;
 
 const
   WideLF = Char(#10);
@@ -183,7 +183,7 @@ begin
   Bounds.Right := Bounds.Left + 1;
   Bounds.Bottom := Bounds.Top + 1;
 
-  Winapi.Windows.DrawTextW(DC, PWideChar(S), Length(S), Bounds, DrawFormat or DT_CALCRECT);
+  Windows.DrawTextW(DC, PWideChar(S), Length(S), Bounds, DrawFormat or DT_CALCRECT);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------

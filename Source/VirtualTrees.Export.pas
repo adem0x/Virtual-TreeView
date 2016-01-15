@@ -6,8 +6,8 @@
 
 interface
 
-uses Winapi.Windows, System.SysUtils, Vcl.Graphics, System.Classes, Vcl.Forms,
-     Vcl.Controls, System.StrUtils, System.Generics.Collections,
+uses Windows, SysUtils, Graphics, Classes, Forms,
+     Controls, StrUtils, Generics.Collections,
      VirtualTrees, VirtualTrees.Classes;
 
 function ContentToHTML(Tree: TCustomVirtualStringTree; Source: TVSTTextSourceType; const Caption: string = ''): String;
@@ -18,8 +18,10 @@ procedure ContentToCustom(Tree: TCustomVirtualStringTree; Source: TVSTTextSource
 
 implementation
 
+{$if CompilerVersion > 22}
 uses
   UITypes;
+{$ifend}
 
 type
   TCustomVirtualStringTreeCracker = class(TCustomVirtualStringTree)
@@ -415,7 +417,7 @@ begin
           lGetCellTextEventArgs.Column := Index;
           CrackTree.DoGetText(lGetCellTextEventArgs);
           Buffer.Add(lGetCellTextEventArgs.CellText);
-          if not lGetCellTextEventArgs.StaticText.IsEmpty and (toShowStaticText in TStringTreeOptions(CrackTree.TreeOptions).StringOptions) then
+          if (lGetCellTextEventArgs.StaticText <> '') and (toShowStaticText in TStringTreeOptions(CrackTree.TreeOptions).StringOptions) then
             Buffer.Add(' ' + lGetCellTextEventArgs.StaticText);
           Buffer.Add('</td>');
         end;
@@ -741,7 +743,7 @@ begin
           begin
             TextPlusFont(lGetCellTextEventArgs.CellText, CrackTree.Canvas.Font);
           end;
-          if not lGetCellTextEventArgs.StaticText.IsEmpty and (toShowStaticText in TStringTreeOptions(CrackTree.TreeOptions).StringOptions) then
+          if (lGetCellTextEventArgs.StaticText <> '') and (toShowStaticText in TStringTreeOptions(CrackTree.TreeOptions).StringOptions) then
           begin
             CrackTree.DoPaintText(Run, CrackTree.Canvas, Index, ttStatic);
             TextPlusFont(' ' + lGetCellTextEventArgs.StaticText, CrackTree.Canvas.Font);
@@ -888,7 +890,7 @@ begin
             CrackTree.DoGetText(lGetCellTextEventArgs);
             if Index = CrackTree.Header.MainColumn then
               Buffer.Add(Copy(Tabs, 1, Integer(CrackTree.GetNodeLevel(Run)) * Length(Separator)));
-            if not lGetCellTextEventArgs.StaticText.IsEmpty and (toShowStaticText in TStringTreeOptions(CrackTree.TreeOptions).StringOptions) then
+            if (lGetCellTextEventArgs.StaticText <> '') and (toShowStaticText in TStringTreeOptions(CrackTree.TreeOptions).StringOptions) then
               CheckQuotingAndAppend(lGetCellTextEventArgs.CellText + ' ' + lGetCellTextEventArgs.StaticText)
             else
               CheckQuotingAndAppend(lGetCellTextEventArgs.CellText);
@@ -979,10 +981,10 @@ function ContentToClipboard(Tree: TCustomVirtualStringTree; Format: Word; Source
     EndHTMLIndex := EndFragmentIndex + Length(HTMLExtro);
 
     Description := Version +
-    System.SysUtils.Format('%s%.8d', [StartHTML, StartHTMLIndex]) + #13#10 +
-    System.SysUtils.Format('%s%.8d', [EndHTML, EndHTMLIndex]) + #13#10 +
-    System.SysUtils.Format('%s%.8d', [StartFragment, StartFragmentIndex]) + #13#10 +
-    System.SysUtils.Format('%s%.8d', [EndFragment, EndFragmentIndex]) + #13#10;
+    SysUtils.Format('%s%.8d', [StartHTML, StartHTMLIndex]) + #13#10 +
+    SysUtils.Format('%s%.8d', [EndHTML, EndHTMLIndex]) + #13#10 +
+    SysUtils.Format('%s%.8d', [StartFragment, StartFragmentIndex]) + #13#10 +
+    SysUtils.Format('%s%.8d', [EndFragment, EndFragmentIndex]) + #13#10;
     HTML := Description + DocType + HTMLIntro + HTML + HTMLExtro;
   end;
 

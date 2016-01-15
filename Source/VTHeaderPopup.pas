@@ -66,7 +66,7 @@ unit VTHeaderPopup;
 interface
 
 uses
-  Vcl.Menus, VirtualTrees;
+  Menus, VirtualTrees;
 
 type
   TVTHeaderPopupOption = (
@@ -112,7 +112,7 @@ type
 implementation
 
 uses
-  Winapi.Windows, System.Classes;
+  Windows, Classes;
 
 const
   cResizeToFitMenuItemName = 'VT_ResizeToFitMenuItem';

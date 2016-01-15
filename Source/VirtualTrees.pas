@@ -47,7 +47,9 @@ unit VirtualTrees;
 
 interface
 
-{$if CompilerVersion < 24}{$MESSAGE FATAL 'This version supports only RAD Studio XE3 and higher. Please use V5 from  http://www.jam-software.com/virtual-treeview/VirtualTreeViewV5.5.3.zip  or  https://github.com/Virtual-TreeView/Virtual-TreeView/archive/V5_stable.zip'}{$ifend}
+{$if CompilerVersion > 22}
+  {$define SUPPORTS_VCL_THEMES}
+{$ifend}
 
 {$booleval off} // Use fastest possible boolean evaluation
 
@@ -56,7 +58,9 @@ interface
 {$WARN UNSAFE_CAST OFF}
 {$WARN UNSAFE_CODE OFF}
 
-{$LEGACYIFEND ON}
+{$if CompilerVersion > 23}
+  {$LEGACYIFEND ON}
+{$ifend}
 {$WARN UNSUPPORTED_CONSTRUCT      OFF}
 
 {$HPPEMIT '#include <objidl.h>'}
@@ -71,10 +75,10 @@ interface
 {$HPPEMIT '#pragma link "Shell32.lib"'}
 
 uses
-  Winapi.Windows, Winapi.oleacc, Winapi.Messages, System.SysUtils, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.ImgList, Winapi.ActiveX, Vcl.StdCtrls, System.Classes,
-  Vcl.Menus, Vcl.Printers, System.Types, Winapi.CommCtrl, Vcl.Themes, Winapi.UxTheme,
-  Winapi.ShlObj, System.UITypes, System.Generics.Collections;
+  Windows, oleacc, Messages, SysUtils, Graphics,
+  Controls, Forms, ImgList, ActiveX, StdCtrls, Classes,
+  Menus, Printers, Types, CommCtrl, Themes, UxTheme,
+  ShlObj, {$if CompilerVersion > 22}UITypes,{$ifend} Generics.Collections;
 
 const
   VTVersion = '6.2.3';
@@ -1067,7 +1071,7 @@ type
     procedure HeaderPopupMenuColumnChange(const Sender: TBaseVirtualTree; const Column: TColumnIndex; Visible: Boolean);
     procedure IndexChanged(OldIndex, NewIndex: Integer);
     procedure InitializePositionArray;
-    procedure Notify(Item: TCollectionItem; Action: System.Classes.TCollectionNotification); override;
+    procedure Notify(Item: TCollectionItem; Action: Classes.TCollectionNotification); override;
     procedure ReorderColumns(RTL: Boolean);
     procedure Update(Item: TCollectionItem); override;
     procedure UpdatePositions(Force: Boolean = False);
@@ -2245,7 +2249,9 @@ type
 
     FVclStyleEnabled: Boolean;
 
+{$ifdef SUPPORTS_VCL_THEMES}
     procedure CMStyleChanged(var Message: TMessage); message CM_STYLECHANGED;
+{$endif}
     procedure CMParentDoubleBufferedChange(var Message: TMessage); message CM_PARENTDOUBLEBUFFEREDCHANGED;
 
     procedure AdjustCoordinatesByIndent(var PaintInfo: TVTPaintInfo; Indent: Integer);
@@ -2669,7 +2675,9 @@ type
     procedure UpdateDesigner; virtual;
     procedure UpdateEditBounds; virtual;
     procedure UpdateHeaderRect; virtual;
+{$ifdef SUPPORTS_VCL_THEMES}
     procedure UpdateStyleElements; override;
+{$endif}
     procedure UpdateWindowAndDragImage(const Tree: TBaseVirtualTree; TreeRect: TRect; UpdateNCArea,
       ReshowDragImage: Boolean); virtual;
     procedure ValidateCache; virtual;
@@ -2678,7 +2686,9 @@ type
     procedure WriteChunks(Stream: TStream; Node: PVirtualNode); virtual;
     procedure WriteNode(Stream: TStream; Node: PVirtualNode); virtual;
 
+{$ifdef SUPPORTS_VCL_STYLES}
     procedure VclStyleChanged; virtual;
+{$endif}
     property VclStyleEnabled: Boolean read FVclStyleEnabled;
     property TotalInternalDataSize: Cardinal read FTotalInternalDataSize;
 
@@ -3467,7 +3477,9 @@ type
     property SelectionCurveRadius;
     property ShowHint;
     property StateImages;
+{$ifdef SUPPORTS_VCL_THEMES}
     property StyleElements;
+{$endif}
     property TabOrder;
     property TabStop default True;
     property TextMargin;
@@ -3874,7 +3886,9 @@ type
     property OnCanResize;
     property OnGesture;
     property Touch;
+{$ifdef SUPPORTS_VCL_THEMES}
     property StyleElements;
+{$endif}
   end;
 
 
@@ -3892,17 +3906,19 @@ implementation
 {$R VirtualTrees.res}
 
 uses
-  Vcl.Consts,
-  System.Math,
-  Vcl.AxCtrls,                 // TOLEStream
-  Winapi.MMSystem,             // for animation timer (does not include further resources)
-  System.TypInfo,              // for migration stuff
-  Vcl.ActnList,
-  Vcl.StdActns,                // for standard action support
-  System.StrUtils,
+  Consts,
+  Math,
+  AxCtrls,                 // TOLEStream
+  MMSystem,             // for animation timer (does not include further resources)
+  TypInfo,              // for migration stuff
+  ActnList,
+  StdActns,                // for standard action support
+  StrUtils,
   VTAccessibilityFactory,
-  Vcl.GraphUtil,               // accessibility helper class
+  GraphUtil,               // accessibility helper class
+{$ifdef SUPPORTS_VCL_THEMES}
   VirtualTrees.StyleHooks,
+{$endif}
   VirtualTrees.Classes,
   VirtualTrees.WorkerThread,
   VirtualTrees.ClipBoard,
@@ -4104,7 +4120,46 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+{$ifndef SUPPORTS_VCL_STYLES}
+type
+  TElementEdge = (
+    eeRaisedOuter
+  );
 
+  TElementEdges = set of TElementEdge;
+
+  TElementEdgeFlag = (
+    efRect
+  );
+
+  TElementEdgeFlags = set of TElementEdgeFlag;
+
+  TThemeServicesHelper = class helper for TThemeServices
+    function GetEnabled: Boolean; inline;
+
+    function DrawEdge(DC: HDC; Details: TThemedElementDetails; const R: TRect;
+      Edges: TElementEdges; Flags: TElementEdgeFlags; ContentRect: PRect = nil): Boolean; overload;
+
+    property Enabled: Boolean read GetEnabled;
+  end;
+
+function TThemeServicesHelper.GetEnabled: Boolean;
+begin
+  Result := ThemesEnabled;
+end;
+
+function TThemeServicesHelper.DrawEdge(DC: HDC; Details: TThemedElementDetails; const R: TRect;
+  Edges: TElementEdges; Flags: TElementEdgeFlags; ContentRect: PRect = nil): Boolean;
+begin
+  DrawEdge(DC, Details, R, Byte(Edges), Byte(Flags), ContentRect);
+  Result := ThemesEnabled;
+end;
+
+function StyleServices: TThemeServices;
+begin
+  Result := ThemeServices;
+end;
+{$endif}
 
 
 const
@@ -5562,10 +5617,12 @@ var
   HintKind: TVTHintKind;
   LClipRect: TRect;
 
+{$ifdef SUPPORTS_VCL_THEMES}
   LColor: TColor;
   LDetails: TThemedElementDetails;
   LGradientStart: TColor;
   LGradientEnd: TColor;
+{$endif}
 
 begin
   Shadow := 0;
@@ -5603,6 +5660,7 @@ begin
       else
         with Canvas do
         begin
+{$ifdef SUPPORTS_VCL_THEMES}
           if Tree.VclStyleEnabled  then
           begin
             LDetails := StyleServices.GetElementDetails(thHintNormal);
@@ -5621,6 +5679,7 @@ begin
             GradientFillCanvas(Canvas, LGradientStart, LGradientEnd, R, gdVertical);
           end
           else
+{$endif}
           begin
             // Still force tooltip back and text color.
             Font.Color := clInfoText;
@@ -5649,12 +5708,12 @@ begin
           // Determine text position and don't forget the border.
           InflateRect(R, -1, -1);
           DrawFormat := DT_TOP or DT_NOPREFIX;
-          SetBkMode(Handle, Winapi.Windows.TRANSPARENT);
+          SetBkMode(Handle, Windows.TRANSPARENT);
           R.Top := Y;
           R.Left := R.Left + 3; // Make the text more centered
           if Assigned(Node) and (LineBreakStyle = hlbForceMultiLine) then
             DrawFormat := DrawFormat or DT_WORDBREAK;
-          Winapi.Windows.DrawTextW(Handle, PWideChar(HintText), Length(HintText), R, DrawFormat);
+          Windows.DrawTextW(Handle, PWideChar(HintText), Length(HintText), R, DrawFormat);
         end;
     end;
   end;
@@ -5884,7 +5943,7 @@ begin
               // On Windows NT/2K/XP the behavior of the tooltip is slightly different to that on Windows 9x/Me.
               // We don't have Unicode word wrap on the latter so the tooltip gets as wide as the largest line
               // in the caption (limited by carriage return), which results in unoptimal overlay of the tooltip.
-              Winapi.Windows.DrawTextW(Canvas.Handle, PWideChar(HintText), Length(HintText), R, DT_CALCRECT or DT_WORDBREAK);
+              Windows.DrawTextW(Canvas.Handle, PWideChar(HintText), Length(HintText), R, DT_CALCRECT or DT_WORDBREAK);
               if BidiMode = bdLeftToRight then
                 Result.Right := R.Right + Tree.FTextMargin
               else
@@ -5925,7 +5984,7 @@ begin
             // Start with the base size of the hint in client coordinates.
             Result := Rect(0, 0, MaxWidth, FTextHeight);
             // Calculate the true size of the text rectangle.
-            Winapi.Windows.DrawTextW(Canvas.Handle, PWideChar(HintText), Length(HintText), Result, DT_CALCRECT or DT_TOP or DT_NOPREFIX or DT_WORDBREAK);
+            Windows.DrawTextW(Canvas.Handle, PWideChar(HintText), Length(HintText), Result, DT_CALCRECT or DT_TOP or DT_NOPREFIX or DT_WORDBREAK);
             // The height of the text plus 2 pixels vertical margin plus the border determine the hint window height.
             Inc(Result.Bottom, 6);
             // The text is centered horizontally with usual text margin for left and right borders (plus border).
@@ -8104,16 +8163,16 @@ begin
     if FHeader.Treeview.VclStyleEnabled then
     begin
       SetTextColor(DC, ColorToRGB(FHeader.Treeview.FColors.HeaderFontColor));
-      Winapi.Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
+      Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
     end
     else
   begin
     OffsetRect(Bounds, 1, 1);
     SetTextColor(DC, ColorToRGB(clBtnHighlight));
-    Winapi.Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
+    Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
     OffsetRect(Bounds, -1, -1);
     SetTextColor(DC, ColorToRGB(clBtnShadow));
-    Winapi.Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
+    Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
   end
   else
   begin
@@ -8121,7 +8180,7 @@ begin
       SetTextColor(DC, ColorToRGB(FHeader.Treeview.FColors.HeaderHotColor))
     else
       SetTextColor(DC, ColorToRGB(FHeader.Treeview.FColors.HeaderFontColor));
-    Winapi.Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
+    Windows.DrawTextW(DC, PWideChar(Caption), Length(Caption), Bounds, DrawFormat);
   end;
 end;
 
@@ -8382,7 +8441,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
-procedure TVirtualTreeColumns.Notify(Item: TCollectionItem; Action: System.Classes.TCollectionNotification);
+procedure TVirtualTreeColumns.Notify(Item: TCollectionItem; Action: Classes.TCollectionNotification);
 
 begin
   if Action in [cnExtracting, cnDeleting] then
@@ -9128,7 +9187,9 @@ var
 
   var
     BackgroundRect: TRect;
+{$ifdef SUPPORTS_VCL_THEMES}
     Details: TThemedElementDetails;
+{$endif}
     Theme: HTheme;
   begin
     BackgroundRect := Rect(Target.X, Target.Y, Target.X + R.Right - R.Left, Target.Y + FHeader.Height);
@@ -9142,12 +9203,14 @@ var
       end  
       else
       begin
+{$ifdef SUPPORTS_VCL_THEMES}
         if (FHeader.Treeview.VclStyleEnabled and (seClient in FHeader.FOwner.StyleElements)) then
         begin
           Details := StyleServices.GetElementDetails(thHeaderItemRightNormal);
           StyleServices.DrawElement(Handle, Details, BackgroundRect, @BackgroundRect);
         end
         else
+{$endif}
         if tsUseThemes in FHeader.Treeview.FStates then
         begin
           Theme := OpenThemeData(FHeader.Treeview.Handle, 'HEADER');
@@ -9231,6 +9294,7 @@ var
           FHeader.Treeview.DoAdvancedHeaderDraw(PaintInfo, [hpeBackground])
         else
         begin
+{$ifdef SUPPORTS_VCL_THEMES}
           if FHeader.Treeview.VclStyleEnabled and (seClient in FHeader.FOwner.StyleElements)  then
           begin
             if IsDownIndex then
@@ -9243,6 +9307,7 @@ var
             StyleServices.DrawElement(TargetCanvas.Handle, Details, PaintRectangle, @PaintRectangle);
           end
           else
+{$endif}
             begin
               if tsUseThemes in FHeader.Treeview.FStates then
               begin
@@ -10854,7 +10919,7 @@ begin
           Result := NewCursor <> Screen.Cursors[crDefault];
           if Result then
           begin
-            Winapi.Windows.SetCursor(NewCursor);
+            Windows.SetCursor(NewCursor);
             Message.Result := 1;
           end;
         end;
@@ -11871,9 +11936,11 @@ end;
 function TVTColors.GetBackgroundColor: TColor;
 begin
 // XE2 VCL Style
+{$ifdef SUPPORTS_VCL_THEMES}
   if FOwner.VclStyleEnabled and (seClient in FOwner.StyleElements) then
     Result := StyleServices.GetStyleColor(scTreeView)
   else
+{$endif}
     Result := FOwner.Color;
 end;
 
@@ -11882,6 +11949,7 @@ end;
 function TVTColors.GetColor(const Index: Integer): TColor;
 
 begin
+{$ifdef SUPPORTS_VCL_THEMES}
   if FOwner.VclStyleEnabled  then
   begin
     case Index of
@@ -11924,6 +11992,7 @@ begin
     end;
   end
   else
+{$endif}
     Result := FColors[Index];
 end;
 
@@ -11932,9 +12001,11 @@ end;
 function TVTColors.GetHeaderFontColor: TColor;
 begin
 // XE2+ VCL Style
+{$ifdef SUPPORTS_VCL_THEMES}
   if FOwner.VclStyleEnabled and (seFont in FOwner.StyleElements) then
     StyleServices.GetElementColor(StyleServices.GetElementDetails(thHeaderItemNormal), ecTextColor, Result)
   else
+{$endif}
     Result := FOwner.FHeader.Font.Color;
 end;
 
@@ -11942,9 +12013,11 @@ end;
 
 function TVTColors.GetNodeFontColor: TColor;
 begin
+{$ifdef SUPPORTS_VCL_THEMES}
   if FOwner.VclStyleEnabled and (seFont in FOwner.StyleElements) then
     StyleServices.GetElementColor(StyleServices.GetElementDetails(ttItemNormal), ecTextColor, Result)
   else
+{$endif}
     Result := FOwner.Font.Color;
 end;
 
@@ -12128,7 +12201,9 @@ begin
 
   if not (csDesigning in ComponentState) then //Don't cerate worker thread in IDE, there is no use for it
     AddThreadReference;
+{$ifdef SUPPORTS_VCL_STYLES}
   VclStyleChanged();
+{$endif}
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -13960,6 +14035,7 @@ var
   //--------------- end local function ----------------------------------------
 
 begin
+{$ifdef SUPPORTS_VCL_THEMES}
   if VclStyleEnabled and (seClient in StyleElements) then
   begin
     Size.cx := 11;
@@ -13982,6 +14058,7 @@ begin
       FOnPrepareButtonImages(Self, FPlusBM, FHotPlusBM, FSelectedHotPlusBM, FMinusBM, FHotMinusBM, FSelectedHotMinusBM, size);
   end
     else
+{$endif}
       begin
         Size.cx := 9;
         Size.cy := 9;
@@ -15405,7 +15482,7 @@ procedure TBaseVirtualTree.SetWindowTheme(const Theme: string);
 
 begin
   FChangingTheme := True;
-  Winapi.UxTheme.SetWindowTheme(Handle, PWideChar(Theme), nil);
+  UxTheme.SetWindowTheme(Handle, PWideChar(Theme), nil);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -15612,8 +15689,10 @@ end;
 procedure TBaseVirtualTree.CMBorderChanged(var Message: TMessage);
 begin
   inherited;
+{$ifdef SUPPORTS_VCL_THEMES}
   if VclStyleEnabled and (seBorder in StyleElements) then
     RecreateWnd;
+{$endif}
 end;
 
 procedure TBaseVirtualTree.CMParentDoubleBufferedChange(var Message: TMessage);
@@ -15621,11 +15700,13 @@ begin
   // empty by intention, we do our own buffering
 end;
 
+{$ifdef SUPPORTS_VCL_THEMES}
 procedure TBaseVirtualTree.CMStyleChanged(var Message: TMessage);
 begin
   VclStyleChanged;
   RecreateWnd;
 end;
+{$endif}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -17475,11 +17556,17 @@ begin
   finally
     ReleaseDC(Handle, DC);
   end;
-  if (((tsUseThemes in FStates) and not VclStyleEnabled) or (VclStyleEnabled and (seBorder in StyleElements))) then
+  if (((tsUseThemes in FStates) and not VclStyleEnabled)
+{$ifdef SUPPORTS_VCL_THEMES}
+  or (VclStyleEnabled and (seBorder in StyleElements))
+{$endif}
+  ) then
       StyleServices.PaintBorder(Self, False)
   else
+{$ifdef SUPPORTS_VCL_THEMES}
     if (VclStyleEnabled and not (seBorder in StyleElements)) then
       TStyleManager.SystemStyle.PaintBorder(Self, False)
+{$endif}
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -17703,7 +17790,7 @@ begin
           end
           else
             NewCursor := Cursor;
-          Winapi.Windows.SetCursor(Screen.Cursors[NewCursor]);
+          Windows.SetCursor(Screen.Cursors[NewCursor]);
           Message.Result := 1;
         end
         else
@@ -18057,7 +18144,7 @@ begin
   begin
     DeleteObject(FPanningCursor);
     FPanningCursor := NewCursor;
-    Winapi.Windows.SetCursor(FPanningCursor);
+    Windows.SetCursor(FPanningCursor);
   end
   else
     DeleteObject(NewCursor);
@@ -20636,7 +20723,7 @@ begin
         begin
           if (suoRepaintHeader in Options) and (hoVisible in FHeader.FOptions) then
             FHeader.Invalidate(nil);
-          if not (tsSizing in FStates) and (FScrollBarOptions.ScrollBars in [System.UITypes.TScrollStyle.ssHorizontal, System.UITypes.TScrollStyle.ssBoth]) then
+          if not (tsSizing in FStates) and (FScrollBarOptions.ScrollBars in [ssHorizontal, ssBoth]) then
             UpdateHorizontalScrollBar(suoRepaintScrollBars in Options);
         end;
 
@@ -20644,7 +20731,7 @@ begin
         begin
           UpdateVerticalScrollBar(suoRepaintScrollBars in Options);
           if not (FHeader.UseColumns or IsMouseSelecting) and
-            (FScrollBarOptions.ScrollBars in [System.UITypes.TScrollStyle.ssHorizontal, System.UITypes.TScrollStyle.ssBoth]) then
+            (FScrollBarOptions.ScrollBars in [ssHorizontal, ssBoth]) then
             UpdateHorizontalScrollBar(suoRepaintScrollBars in Options);
         end;
       end;
@@ -20660,7 +20747,9 @@ begin
       HandleHotTrack(P.X, P.Y);
 
     DoScroll(DeltaX, DeltaY);
+{$ifdef SUPPORTS_VCL_THEMES}
     Perform(CM_UPDATE_VCLSTYLE_SCROLLBARS,0,0);
+{$endif}
   end;
 end;
 
@@ -20984,7 +21073,7 @@ begin
     DragEffect := lDragEffect;
   end
   else
-  Winapi.ActiveX.DoDragDrop(DataObject, DragManager as IDropSource, AllowedEffects, DragEffect);
+  ActiveX.DoDragDrop(DataObject, DragManager as IDropSource, AllowedEffects, DragEffect);
  end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -21388,7 +21477,7 @@ begin
   begin
     Brush.Color := FColors.BackGroundColor;
     R := Rect(Min(Left, Right), Top, Max(Left, Right) + 1, Top + 1);
-    Winapi.Windows.FillRect(Handle, R, FDottedBrush);
+    Windows.FillRect(Handle, R, FDottedBrush);
   end;
 end;
 
@@ -21414,7 +21503,7 @@ begin
     else
     Brush.Color := FColors.BackGroundColor;
     R := Rect(Left, Min(Top, Bottom), Left + 1, Max(Top, Bottom) + 1);
-    Winapi.Windows.FillRect(Handle, R, FDottedBrush);
+    Windows.FillRect(Handle, R, FDottedBrush);
   end;
 end;
 
@@ -22343,7 +22432,7 @@ begin
   // Focus change. Don't use the SetFocus method as this does not work for MDI Winapi.Windows.
   if not Focused and CanFocus then
   begin
-    Winapi.Windows.SetFocus(Handle);
+    Windows.SetFocus(Handle);
     // Repeat the hit test as an OnExit event might got triggered that could modify the tree.
     GetHitTestInfoAt(Message.XPos, Message.YPos, True, HitInfo);
   end;
@@ -23629,7 +23718,7 @@ begin
 
     // Erase parts not drawn.
     Brush.Color := FColors.BorderColor;
-    Winapi.Windows.FillRect(DC, RW, Brush.Handle);
+    Windows.FillRect(DC, RW, Brush.Handle);
   end;
 end;
 
@@ -23704,7 +23793,9 @@ var
   ForegroundColor: COLORREF;
   R: TRect;
   Details: TThemedElementDetails;
+{$ifdef SUPPORTS_VCL_THEMES}
   lSize: TSize;
+{$endif}
 begin
   with ImageInfo do
   begin
@@ -23742,8 +23833,12 @@ begin
       else
         Details := StyleServices.GetElementDetails(tbButtonRoot);
       end;
+{$ifdef SUPPORTS_VCL_STYLES}
       StyleServices.GetElementSize(Canvas.Handle, Details, TElementSize.esActual, lSize);
       R := Rect(XPos, YPos, XPos + lSize.cx, YPos + lSize.cy);
+{$else}
+      R := Rect(XPos - 1, YPos + 1, XPos + 16, YPos + 16);
+{$endif}
       StyleServices.DrawElement(Canvas.Handle, Details, R);
       if Index in [21..24] then
         UtilityImages.Draw(Canvas, XPos, YPos, 4);
@@ -24284,7 +24379,7 @@ begin
             DrawBackground(TREIS_HOTSELECTED);
         end
         else
-          Winapi.Windows.DrawFocusRect(Handle, FocusRect);
+          Windows.DrawFocusRect(Handle, FocusRect);
         SetTextColor(Handle, TextColorBackup);
         SetBkColor(Handle, BackColorBackup);
       end;
@@ -24817,8 +24912,8 @@ begin
   if not ClassRegistered or (TempClass.lpfnWndProc <> @DefWindowProc) then
   begin
     if ClassRegistered then
-      Winapi.Windows.UnregisterClass(PanningWindowClass.lpszClassName, HInstance);
-    Winapi.Windows.RegisterClass(PanningWindowClass);
+      Windows.UnregisterClass(PanningWindowClass.lpszClassName, HInstance);
+    Windows.RegisterClass(PanningWindowClass);
   end;
   // Create the helper window and show it at the given position without activating it.
   Pt := ClientToScreen(Position);
@@ -24841,7 +24936,7 @@ begin
   {$ifdef CPUX64}
   SetWindowLongPtr(FPanningWindow, GWLP_WNDPROC, LONG_PTR(System.Classes.MakeObjectInstance(PanningWindowProc)));
   {$else}
-  SetWindowLong(FPanningWindow, GWL_WNDPROC, NativeInt(System.Classes.MakeObjectInstance(PanningWindowProc)));
+  SetWindowLong(FPanningWindow, GWL_WNDPROC, NativeInt(Classes.MakeObjectInstance(PanningWindowProc)));
   {$endif CPUX64}
   ShowWindow(FPanningWindow, SW_SHOWNOACTIVATE);
 
@@ -24876,13 +24971,13 @@ begin
     {$endif CPUX64}
     DestroyWindow(FPanningWindow);
     if Instance <> @DefWindowProc then
-      System.Classes.FreeObjectInstance(Instance);
+      Classes.FreeObjectInstance(Instance);
     FPanningWindow := 0;
     FPanningImage.Free;
     FPanningImage := nil;
     DeleteObject(FPanningCursor);
     FPanningCursor := 0;
-    Winapi.Windows.SetCursor(Screen.Cursors[Cursor]);
+    Windows.SetCursor(Screen.Cursors[Cursor]);
   end;
 end;
 
@@ -25349,6 +25444,7 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+{$ifdef SUPPORTS_VCL_STYLES}
 procedure TBaseVirtualTree.VclStyleChanged;
 
   // Updates the member FVclStyleEnabled, should be called initially and when the VCL style changes
@@ -25356,6 +25452,7 @@ procedure TBaseVirtualTree.VclStyleChanged;
 begin
   FVclStyleEnabled := StyleServices.Enabled and not StyleServices.IsSystemStyle;
 end;
+{$endif}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -25728,7 +25825,9 @@ begin
       Self.ScrollBarOptions := ScrollBarOptions;
       Self.ShowHint := ShowHint;
       Self.StateImages := StateImages;
+{$ifdef SUPPORTS_VCL_STYLES}
       Self.StyleElements := StyleElements;
+{$endif}
       Self.TabOrder := TabOrder;
       Self.TabStop := TabStop;
       Self.Visible := Visible;
@@ -26870,7 +26969,7 @@ begin
 
       // Increase cell height (up to MaxUnclippedHeight determined above) if text does not fit.
       GetTextMetrics(Self.Canvas.Handle, TM);
-      ExtraVerticalMargin := System.Math.Min(TM.tmHeight, MaxUnclippedHeight) - (Result.Bottom - Result.Top);
+      ExtraVerticalMargin := Math.Min(TM.tmHeight, MaxUnclippedHeight) - (Result.Bottom - Result.Top);
       if ExtraVerticalMargin > 0 then
         InflateRect(Result, 0, (ExtraVerticalMargin + 1) div 2);
 
@@ -31469,7 +31568,7 @@ begin
     else
       if (R.Bottom > ClientHeight) or Center then
       begin
-        HScrollBarVisible := (ScrollBarOptions.ScrollBars in [System.UITypes.TScrollStyle.ssBoth, System.UITypes.TScrollStyle.ssHorizontal]) and
+        HScrollBarVisible := (ScrollBarOptions.ScrollBars in [ssBoth, ssHorizontal]) and
           (ScrollBarOptions.AlwaysVisible or (Integer(FRangeX) > ClientWidth));
         if Center then
           SetOffsetY(FOffsetY - R.Bottom + ClientHeight div 2)
@@ -32326,7 +32425,7 @@ begin
   else
     FEffectiveOffsetX := -FOffsetX;
 
-  if FScrollBarOptions.ScrollBars in [System.UITypes.TScrollStyle.ssHorizontal, System.UITypes.TScrollStyle.ssBoth] then
+  if FScrollBarOptions.ScrollBars in [ssHorizontal, ssBoth] then
   begin
     ZeroMemory (@ScrollInfo, SizeOf(ScrollInfo));
     ScrollInfo.cbSize := SizeOf(ScrollInfo);
@@ -32392,16 +32491,20 @@ begin
   begin
     UpdateVerticalScrollBar(DoRepaint);
     UpdateHorizontalScrollBar(DoRepaint);
+{$ifdef SUPPORTS_VCL_STYLES}
     Perform(CM_UPDATE_VCLSTYLE_SCROLLBARS,0,0);
+{$endif}
   end;
 end;
 
+{$ifdef SUPPORTS_VCL_STYLES}
 procedure TBaseVirtualTree.UpdateStyleElements;
 begin
   inherited;
   UpdateHeaderRect;
   FHeader.Columns.PaintHeader(Canvas, FHeaderRect, Point(0,0));
 end;
+{$endif}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -33361,7 +33464,7 @@ begin
       SetBkMode(Canvas.Handle, TRANSPARENT)
     else
       SetBkMode(Canvas.Handle, OPAQUE);
-    Winapi.Windows.DrawTextW(Canvas.Handle, PWideChar(Text), Length(Text), R, DrawFormat);
+    Windows.DrawTextW(Canvas.Handle, PWideChar(Text), Length(Text), R, DrawFormat);
   end;
 end;
 
@@ -33762,11 +33865,11 @@ begin
     DoGetText(lEventArgs);
 
     // Paint the normal text first...
-    if not lEventArgs.CellText.IsEmpty then
+    if lEventArgs.CellText <> '' then
       PaintNormalText(PaintInfo, TextOutFlags, lEventArgs.CellText);
 
     // ... and afterwards the static text if not centered and the node is not multiline enabled.
-    if (Alignment <> taCenter) and not (vsMultiline in PaintInfo.Node.States) and (toShowStaticText in TreeOptions.FStringOptions) and not lEventArgs.StaticText.IsEmpty then
+    if (Alignment <> taCenter) and not (vsMultiline in PaintInfo.Node.States) and (toShowStaticText in TreeOptions.FStringOptions) and (lEventArgs.StaticText <> '') then
       PaintStaticText(PaintInfo, TextOutFlags, lEventArgs.StaticText);
   finally
     RestoreFontChangeEvent(PaintInfo.Canvas);
@@ -33813,7 +33916,7 @@ begin
   if Assigned(FOnDrawText) then
     FOnDrawText(Self, PaintInfo.Canvas, PaintInfo.Node, PaintInfo.Column, Text, CellRect, DefaultDraw);
   if DefaultDraw then
-    Winapi.Windows.DrawTextW(PaintInfo.Canvas.Handle, PWideChar(Text), Length(Text), CellRect, DrawFormat);
+    Windows.DrawTextW(PaintInfo.Canvas.Handle, PWideChar(Text), Length(Text), CellRect, DrawFormat);
 end;
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -33834,7 +33937,7 @@ begin
       DrawFormat := DrawFormat or DT_RTLREADING;
 
     R := Rect(0, 0, Result.cx, MaxInt);
-    Winapi.Windows.DrawTextW(Canvas.Handle, PWideChar(Text), Length(Text), R, DrawFormat);
+    Windows.DrawTextW(Canvas.Handle, PWideChar(Text), Length(Text), R, DrawFormat);
     Result.cx := R.Right - R.Left;
   end;
   if Assigned(FOnMeasureTextWidth) then
@@ -34087,7 +34190,7 @@ begin
     DrawFormat := DrawFormat or DT_RIGHT or DT_RTLREADING
   else
     DrawFormat := DrawFormat or DT_LEFT;
-  Winapi.Windows.DrawTextW(Canvas.Handle, PWideChar(S), Length(S), PaintInfo.CellRect, DrawFormat);
+  Windows.DrawTextW(Canvas.Handle, PWideChar(S), Length(S), PaintInfo.CellRect, DrawFormat);
   Result := PaintInfo.CellRect.Bottom - PaintInfo.CellRect.Top;
 end;
 

@@ -3,10 +3,12 @@ unit VirtualTrees.Actions;
 interface
 
 uses
-  System.Classes,
-  System.Actions,
-  Vcl.Controls,
-  Vcl.ActnList,
+  Classes,
+{$if CompilerVersion > 22}
+  Actions,
+{$ifend}
+  Controls,
+  ActnList,
   VirtualTrees;
 
 type
@@ -112,7 +114,7 @@ procedure Register;
 implementation
 
 uses
-  Vcl.Forms;
+  Forms;
 
 procedure Register;
 begin

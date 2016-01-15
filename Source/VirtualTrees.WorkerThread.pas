@@ -3,7 +3,7 @@ unit VirtualTrees.WorkerThread;
 interface
 
 uses
-  System.Classes,
+  Classes,
   VirtualTrees;
 
 type
@@ -39,9 +39,9 @@ var
 implementation
 
 uses
-  Winapi.Windows,
-  System.Types,
-  System.SysUtils;
+  Windows,
+  Types,
+  SysUtils;
 
 type
   TBaseVirtualTreeCracker = class(TBaseVirtualTree)
