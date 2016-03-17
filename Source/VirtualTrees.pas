@@ -326,13 +326,27 @@ type
     csMixedDiabled      // disabled 3-stae checbox
   );
 
-  TCheckStateHelper = record helper for TCheckState
-    procedure SetPressed();
-    procedure SetUnpressed();
-    procedure Toggle();
-    function IsDisabled(): Boolean;
-  end;
+//  TCheckStateHelper = record helper for TCheckState
+//    procedure SetPressed();
+//    procedure SetUnpressed();
+//    procedure Toggle();
+//    function IsDisabled(): Boolean;
+//  end;
+function CheckStateIsDisabled(CheckState: TCheckState): Boolean; inline;
+procedure CheckStateSetPressed(var CheckState: TCheckState); inline;
+procedure CheckStateSetUnpressed(var CheckState: TCheckState); inline;
+procedure CheckStateToggle(var CheckState: TCheckState); inline;
 
+const
+  // Lookup to quickly convert a specific check state into its pressed counterpart and vice versa.
+  PressedState: array[TCheckState] of TCheckState = (
+    csUncheckedPressed, csUncheckedPressed, csCheckedPressed, csCheckedPressed, csMixedPressed, csMixedPressed, csUncheckedDisabled, csCheckedDisabled, csMixedDiabled
+  );
+  UnpressedState: array[TCheckState] of TCheckState = (
+    csUncheckedNormal, csUncheckedNormal, csCheckedNormal, csCheckedNormal, csMixedNormal, csMixedNormal, csUncheckedDisabled, csCheckedDisabled, csMixedDiabled
+  );
+
+type
   TCheckImageKind = (
     ckLightCheck,     // gray cross
     ckDarkCheck,      // black cross
@@ -1604,8 +1618,14 @@ type
   end;
 
   /// Alias definitions for convenience and to keep other uses clause smaller
+
+{$if CompilerVersion > 22}
   TImageIndex = System.UITypes.TImageIndex;
   TCustomImageList = Vcl.ImgList.TCustomImageList;
+{$else}
+  TImageIndex = ImgList.TImageIndex;
+  TCustomImageList = ImgList.TCustomImageList;
+{$ifend}
 
   // For painting a node and its columns/cells a lot of information must be passed frequently around.
   TVTImageInfo = record
@@ -12449,7 +12469,8 @@ begin
                     begin
                       if Run.CheckType in [ctCheckBox, ctTriStateCheckBox] then
                       begin
-                        if not Run.CheckState.IsDisabled() then
+                        if not CheckStateIsDisabled(Run.CheckState) then
+//                        if not Run.CheckState.IsDisabled() then
                           SetCheckState(Run, csUncheckedNormal);
                         // Check if the new child state was set successfully, otherwise we have to adjust the
                         // node's new check state accordingly.
@@ -12488,7 +12509,8 @@ begin
                     begin
                       if Run.CheckType in [ctCheckBox, ctTriStateCheckBox] then
                       begin
-                        if not Run.CheckState.IsDisabled() then
+                        if not CheckStateIsDisabled(Run.CheckState) then
+//                        if not Run.CheckState.IsDisabled() then
                           SetCheckState(Run, csCheckedNormal);
                         // Check if the new child state was set successfully, otherwise we have to adjust the
                         // node's new check state accordingly.
@@ -12538,7 +12560,8 @@ begin
       if Result then
         CheckState := Value // Set new check state
       else
-        CheckState.SetUnpressed(); // Reset dynamic check state.
+        CheckStateSetUnpressed(CheckState);
+//        CheckState.SetUnpressed(); // Reset dynamic check state.
 
       // Propagate state up to the parent.
       if not (vsInitialized in Parent.States) then
@@ -16662,7 +16685,8 @@ begin
       if (tsKeyCheckPending in FStates) and (CharCode <> VK_SPACE) then
       begin
         DoStateChange([], [tskeyCheckPending]);
-        FCheckNode.CheckState.SetUnpressed();
+        CheckStateSetUnpressed(FCheckNode.CheckState);
+//        FCheckNode.CheckState.SetUnpressed();
         RepaintNode(FCheckNode);
         FCheckNode := nil;
       end;
@@ -17166,7 +17190,8 @@ begin
                   DoStateChange([tsKeyCheckPending]);
                   FCheckNode := FFocusedNode;
                   FPendingCheckState := NewCheckState;
-                  FCheckNode.CheckState.SetPressed();
+                  CheckStateSetPressed(FCheckNode.CheckState);
+//                  FCheckNode.CheckState.SetPressed();
                   RepaintNode(FCheckNode);
                 end;
               end;
@@ -19195,7 +19220,8 @@ begin
     ctTriStateCheckBox,
     ctCheckBox: begin
       Result := CheckState;
-      Result.Toggle();
+      CheckStateToggle(Result);
+//      Result.Toggle();
     end;//ctCheckbox
     ctRadioButton:
       Result := csCheckedNormal;
@@ -22345,7 +22371,8 @@ begin
             DoStateChange([tsMouseCheckPending]);
             FCheckNode := HitInfo.HitNode;
             FPendingCheckState := NewCheckState;
-            FCheckNode.CheckState.SetPressed();
+            CheckStateSetPressed(FCheckNode.CheckState);
+//            FCheckNode.CheckState.SetPressed();
             InvalidateNode(HitInfo.HitNode);
             MayEdit := False;
           end;
@@ -22554,7 +22581,8 @@ begin
         DoStateChange([tsMouseCheckPending]);
         FCheckNode := HitInfo.HitNode;
         FPendingCheckState := NewCheckState;
-        FCheckNode.CheckState.SetPressed();
+        CheckStateSetPressed(FCheckNode.CheckState);
+//        FCheckNode.CheckState.SetPressed();
         InvalidateNode(HitInfo.HitNode);
       end;
     end;
@@ -22744,7 +22772,8 @@ begin
        if (HitInfo.HitNode = FCheckNode) and (hiOnItem in HitInfo.HitPositions) then
           DoCheckClick(FCheckNode, FPendingCheckState)
         else
-          FCheckNode.CheckState.SetUnpressed();
+          CheckStateSetUnpressed(FCheckNode.CheckState);
+//          FCheckNode.CheckState.SetUnpressed();
         InvalidateNode(FCheckNode);
       end;
       FCheckNode := nil;
@@ -34647,38 +34676,60 @@ end;
 
 { TCheckStateHelper }
 
-function TCheckStateHelper.IsDisabled: Boolean;
+function CheckStateIsDisabled(CheckState: TCheckState): Boolean;
 begin
-  Result := Self >= TCheckState.csUncheckedDisabled;
+  Result := CheckState >= TCheckState.csUncheckedDisabled;
 end;
 
-procedure TCheckStateHelper.SetPressed();
-const
-  // Lookup to quickly convert a specific check state into its pressed counterpart and vice versa.
-  PressedState: array[TCheckState] of TCheckState = (
-    csUncheckedPressed, csUncheckedPressed, csCheckedPressed, csCheckedPressed, csMixedPressed, csMixedPressed, csUncheckedDisabled, csCheckedDisabled, csMixedDiabled
-  );
+//function TCheckStateHelper.IsDisabled: Boolean;
+//begin
+//  Result := Self >= TCheckState.csUncheckedDisabled;
+//end;
+
+procedure CheckStateSetPressed(var CheckState: TCheckState);
 begin
-  Self := PressedState[Self];
+  CheckState := PressedState[CheckState];
 end;
 
-procedure TCheckStateHelper.SetUnpressed();
-const
-  UnpressedState: array[TCheckState] of TCheckState = (
-    csUncheckedNormal, csUncheckedNormal, csCheckedNormal, csCheckedNormal, csMixedNormal, csMixedNormal, csUncheckedDisabled, csCheckedDisabled, csMixedDiabled
-  );
+//procedure TCheckStateHelper.SetPressed();
+//const
+//  // Lookup to quickly convert a specific check state into its pressed counterpart and vice versa.
+//  PressedState: array[TCheckState] of TCheckState = (
+//    csUncheckedPressed, csUncheckedPressed, csCheckedPressed, csCheckedPressed, csMixedPressed, csMixedPressed, csUncheckedDisabled, csCheckedDisabled, csMixedDiabled
+//  );
+//begin
+//  Self := PressedState[Self];
+//end;
+
+procedure CheckStateSetUnpressed(var CheckState: TCheckState);
 begin
-  Self := UnpressedState[Self];
+  CheckState := UnpressedState[CheckState];
 end;
 
+//procedure TCheckStateHelper.SetUnpressed();
+//const
+//  UnpressedState: array[TCheckState] of TCheckState = (
+//    csUncheckedNormal, csUncheckedNormal, csCheckedNormal, csCheckedNormal, csMixedNormal, csMixedNormal, csUncheckedDisabled, csCheckedDisabled, csMixedDiabled
+//  );
+//begin
+//  Self := UnpressedState[Self];
+//end;
 
-procedure TCheckStateHelper.Toggle;
+procedure CheckStateToggle(var CheckState: TCheckState);
 begin
-  if Self = csCheckedNormal then
-    Self := csUncheckedNormal
-  else if Self < csUncheckedDisabled then // do not modify disbaled checkboxes
-    Self := csCheckedNormal;
+  if CheckState = csCheckedNormal then
+    CheckState := csUncheckedNormal
+  else if CheckState < csUncheckedDisabled then // do not modify disbaled checkboxes
+    CheckState := csCheckedNormal;
 end;
+
+//procedure TCheckStateHelper.Toggle;
+//begin
+//  if Self = csCheckedNormal then
+//    Self := csUncheckedNormal
+//  else if Self < csUncheckedDisabled then // do not modify disbaled checkboxes
+//    Self := csCheckedNormal;
+//end;
 
 initialization
 
